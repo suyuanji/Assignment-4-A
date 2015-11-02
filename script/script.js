@@ -1,6 +1,6 @@
 var margin = {t:50,r:125,b:50,l:125};
-var width = document.getElementById('plot') - margin.r - margin.l,
-    height = document.getElementById('plot') - margin.t - margin.b;
+var width = $('.plot').width() - margin.r - margin.l,
+    height = $('.plot').height() - margin.t - margin.b;
 
 var canvas = d3.select('.plot')
     .append('svg')
@@ -11,7 +11,7 @@ var canvas = d3.select('.plot')
     .attr('transform','translate('+margin.l+','+margin.t+')');
 
 //Scale for the size of the circles
-var scaleR = d3.scale.sqrt().domain([5,100]).range([5,120]);
+var scaleR = d3.scale.sqrt().domain([5,100]).range([5,110]);
 
 
 d3.csv('data/olympic_medal_count.csv', parse, dataLoaded);
@@ -25,24 +25,82 @@ function dataLoaded(err,rows){
         return b[year] - a[year];
     });
 
-    //Note: this returns "top5" as a subset of the larger array "rows", containing positions 0,1,2,3,4
+    //Note: this returns positions 0,1,2,3,4 of the "rows" array
     var top5 = rows.slice(0,5);
-
-    //Call the draw function
     draw(top5, year);
 
     //TODO: fill out this function
-    d3.selectAll('.btn-group .year').on('click',function(){
+    $('.btn-group .year').on('click',function(e){
+        e.preventDefault();
 
-        var year = d3.select(this).id();
-        console.log("Show top 5 medal count for: " + year);
+        var year = $(this).data('year');
+        rows.sort(function(a,b){
+            //Note: this is called a "comparator" function
+            //which makes sure that the array is sorted from highest to lowest
+            return b[year] - a[year];
+        });
+
+        //Note: this returns positions 0,1,2,3,4 of the "rows" array
+        var top5 = rows.slice(0,5);
+        draw(top5, year);
     });
 }
 
 function draw(rows, year){
-    //TODO: Complete drawing function, accounting for enter, exit, update
-    //Note that this function requires two parameters
-    //The second parameter, "year", determines which one of the three years (1900,1960,2012) to draw the medal counts based on
+    var topTeams = canvas.selectAll('.team')
+        .data(rows, function(d){ return d.country; });
+
+    var teamsEnter = topTeams.enter()
+        .append('g')
+        .attr('class', 'team')
+        .attr('transform',function(d,i){
+            return 'translate(' + i*(width/4) + ',' + 0 + ')';
+        })
+        .style('opacity',0);
+    teamsEnter
+        .append('circle')
+        .attr('r', function(d){
+            return scaleR(d[year]);
+        })
+    teamsEnter
+        .append('text')
+        .attr('class','team-name')
+        .text(function(d){ return d.country; })
+        .attr('y', function(d){ return scaleR(d[year]+20)})
+        .attr('text-anchor','middle');
+    teamsEnter
+        .append('text')
+        .attr('class','medal-count')
+        .text(function(d){ return d[year];})
+        .attr('text-anchor','middle');
+
+    var teamsExit = topTeams.exit()
+        .transition()
+        .duration(200)
+        .attr('transform',function(d,i){
+            return 'translate(' + i*(width/4) + ',' + height + ')';
+        })
+        .style('opacity',0)
+        .remove();
+
+    var teamsTransition = topTeams.transition().duration(1000);
+
+    teamsTransition
+        .attr('transform',function(d,i){
+            return 'translate(' + i*(width/4) + ',' + height/2 + ')';
+        })
+        .style('opacity',1);
+    teamsTransition
+        .select('circle')
+        .attr('r', function(d){
+            return scaleR(d[year]);
+        });
+    teamsTransition
+        .select('.team-name')
+        .attr('y', function(d){ return scaleR(d[year]+20)});
+    teamsTransition
+        .select('.medal-count')
+        .text(function(d){ return d[year];});
 }
 
 function parse(row){
